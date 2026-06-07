@@ -24,9 +24,12 @@ jobs:
     runs-on: macos-14 # Apple Silicon, macOS 14 — old enough for Zig 0.15.x to link
     steps:
       - name: Install Zig
-        uses: mlugg/setup-zig@v1
+        uses: mlugg/setup-zig@v2
         with:
           version: ${{ inputs.zig_version }}
+
+      - name: Check Zig
+        run: zig version
 
       - name: Clone ghostty @ ${{ inputs.ghostty_ref }}
         run: git clone --depth 1 --branch "${{ inputs.ghostty_ref }}" https://github.com/ghostty-org/ghostty.git
