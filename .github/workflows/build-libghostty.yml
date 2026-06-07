@@ -44,7 +44,7 @@ jobs:
 
       - name: Build libghostty (app-runtime=none → libghostty)
         working-directory: ghostty
-        run: zig build -Doptimize=ReleaseFast -Dapp-runtime=none
+        run: zig build -Doptimize=ReleaseFast -Dapp-runtime=none -Demit-macos-app=false
 
       - name: Collect libghostty.a + ghostty.h
         run: |
