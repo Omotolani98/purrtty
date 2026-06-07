@@ -34,6 +34,14 @@ jobs:
       - name: Clone ghostty @ ${{ inputs.ghostty_ref }}
         run: git clone --depth 1 --branch "${{ inputs.ghostty_ref }}" https://github.com/ghostty-org/ghostty.git
 
+      - name: Patch Ghostty for runner SDK
+        run: |
+          set -euxo pipefail
+          # macos-14 runner SDKs do not expose kCVPixelFormatType_30RGB_r210,
+          # but Ghostty v1.3.1 references it unconditionally. Use the CoreVideo
+          # fourcc value for 'r210' so the xcframework build can proceed.
+          perl -0pi -e 's/c\.kCVPixelFormatType_30RGB_r210/0x72323130/g' ghostty/pkg/macos/video/pixel_format.zig
+
       - name: Build libghostty (app-runtime=none → libghostty)
         working-directory: ghostty
         run: zig build -Doptimize=ReleaseFast -Dapp-runtime=none
