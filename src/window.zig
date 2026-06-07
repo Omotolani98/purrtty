@@ -12,6 +12,7 @@ const gh = @import("ghostty.zig").c;
 const App = @import("app.zig").App;
 const Surface = @import("surface.zig").Surface;
 const Theme = @import("theme.zig").Theme;
+const mascot = @import("mascot.zig");
 
 const CGPoint = extern struct { x: f64, y: f64 };
 const CGSize = extern struct { width: f64, height: f64 };
@@ -72,6 +73,9 @@ pub fn run(app: *App, theme: Theme, title: [*:0]const u8, cwd: [*:0]const u8) !v
     );
     surface.setFocus(true);
 
+    // Walking pixel-cat overlay, composited over the terminal.
+    mascot.mount(view);
+
     // Show + run.
     _ = objc.msgSend(void, window, objc.sel("center"), .{});
     _ = objc.msgSend(void, window, objc.sel("makeKeyAndOrderFront:"), .{@as(objc.id, null)});
@@ -89,6 +93,7 @@ fn makeViewClass() objc.Class {
     _ = objc.class_addMethod(cls, objc.sel("acceptsFirstResponder"), @ptrCast(&viewAcceptsFirstResponder), "c@:");
     _ = objc.class_addMethod(cls, objc.sel("wantsUpdateLayer"), @ptrCast(&viewWantsUpdateLayer), "c@:");
     _ = objc.class_addMethod(cls, objc.sel("keyDown:"), @ptrCast(&viewKeyDown), "v@:@");
+    _ = objc.class_addMethod(cls, objc.sel("scrollWheel:"), @ptrCast(&viewScrollWheel), "v@:@");
     objc.objc_registerClassPair(cls);
     return cls;
 }
@@ -121,6 +126,20 @@ fn viewKeyDown(_: objc.id, _: objc.SEL, event: objc.id) callconv(.c) void {
     ev.keycode = keycode;
     ev.text = text;
     _ = surface.key(ev);
+}
+
+fn viewScrollWheel(_: objc.id, _: objc.SEL, event: objc.id) callconv(.c) void {
+    const surface = g_surface orelse return;
+
+    // Precise deltas (trackpad / Magic Mouse) come in points; coarse mouse-wheel
+    // ticks come in lines. ghostty wants the precision bit set for the former.
+    const precise = objc.msgSend(bool, event, objc.sel("hasPreciseScrollingDeltas"), .{});
+    const dx = objc.msgSend(f64, event, objc.sel("scrollingDeltaX"), .{});
+    const dy = objc.msgSend(f64, event, objc.sel("scrollingDeltaY"), .{});
+
+    // ghostty_input_scroll_mods_t: bit 0 = precision.
+    const mods: gh.ghostty_input_scroll_mods_t = if (precise) 1 else 0;
+    surface.scroll(dx, dy, mods);
 }
 
 /// NSEventModifierFlags → ghostty mods. Device-independent flag bits are in the

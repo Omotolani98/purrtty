@@ -52,6 +52,7 @@ pub fn msgSend(comptime Ret: type, target: anytype, selector: SEL, args: anytype
         2 => *const fn (@TypeOf(target), SEL, fields[0].type, fields[1].type) callconv(.c) Ret,
         3 => *const fn (@TypeOf(target), SEL, fields[0].type, fields[1].type, fields[2].type) callconv(.c) Ret,
         4 => *const fn (@TypeOf(target), SEL, fields[0].type, fields[1].type, fields[2].type, fields[3].type) callconv(.c) Ret,
+        5 => *const fn (@TypeOf(target), SEL, fields[0].type, fields[1].type, fields[2].type, fields[3].type, fields[4].type) callconv(.c) Ret,
         else => @compileError("add more msgSend arities"),
     };
     const f: FnType = @ptrCast(&objc_msgSend);
@@ -62,6 +63,7 @@ pub fn msgSend(comptime Ret: type, target: anytype, selector: SEL, args: anytype
         2 => f(target, selector, args[0], args[1]),
         3 => f(target, selector, args[0], args[1], args[2]),
         4 => f(target, selector, args[0], args[1], args[2], args[3]),
+        5 => f(target, selector, args[0], args[1], args[2], args[3], args[4]),
         else => unreachable,
     };
 }

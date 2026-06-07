@@ -88,10 +88,13 @@ pub const CatPalette = struct {
     p: Color,
     b: Color,
 };
-pub const cats = [_]CatPalette{
-    .{ .id = "gray", .name = "mochi", .k = Color.hex("#23252b"), .g = Color.hex("#aab1b8"), .l = Color.hex("#c8cdd3"), .s = Color.hex("#7c838b"), .e = Color.hex("#1b1d22"), .p = Color.hex("#f0a6bf"), .b = Color.hex("#f3b9cd") },
-    .{ .id = "tabby", .name = "biscuit", .k = Color.hex("#3a2a1c"), .g = Color.hex("#e7a85a"), .l = Color.hex("#fbf2e2"), .s = Color.hex("#c8842f"), .e = Color.hex("#2a1d12"), .p = Color.hex("#e58aa6"), .b = Color.hex("#f0a8c0") },
-    .{ .id = "green", .name = "phosphor", .k = Color.hex("#0c3b27"), .g = Color.hex("#3DDC97"), .l = Color.hex("#aef5d2"), .s = Color.hex("#1f9c66"), .e = Color.hex("#06231a"), .p = Color.hex("#0c3b27"), .b = Color.hex("#27c486") },
+pub const cats = blk: {
+    @setEvalBranchQuota(100000); // comptime hex parsing of the whole palette table
+    break :blk [_]CatPalette{
+        .{ .id = "gray", .name = "mochi", .k = Color.hex("#23252b"), .g = Color.hex("#aab1b8"), .l = Color.hex("#c8cdd3"), .s = Color.hex("#7c838b"), .e = Color.hex("#1b1d22"), .p = Color.hex("#f0a6bf"), .b = Color.hex("#f3b9cd") },
+        .{ .id = "tabby", .name = "biscuit", .k = Color.hex("#3a2a1c"), .g = Color.hex("#e7a85a"), .l = Color.hex("#fbf2e2"), .s = Color.hex("#c8842f"), .e = Color.hex("#2a1d12"), .p = Color.hex("#e58aa6"), .b = Color.hex("#f0a8c0") },
+        .{ .id = "green", .name = "phosphor", .k = Color.hex("#0c3b27"), .g = Color.hex("#3DDC97"), .l = Color.hex("#aef5d2"), .s = Color.hex("#1f9c66"), .e = Color.hex("#06231a"), .p = Color.hex("#0c3b27"), .b = Color.hex("#27c486") },
+    };
 };
 
 test "color parse + format roundtrip" {

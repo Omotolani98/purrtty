@@ -18,7 +18,8 @@ settings — recreating the design in `design/` (a handoff from claude.ai/design
 | Theme → ghostty config pipeline (`src/tokens.zig`, `src/theme.zig`, `src/config.zig`) | ✅ unit-tested |
 | Phosphor-green palette, JetBrains Mono, green cursor | ✅ wired |
 | **Builds + runs** (real shell in a Metal window) | ✅ on macOS 26 |
-| **Walking cat mascot** | ⏳ designed, deferred (overlay slice) |
+| Scrollback (trackpad/wheel) | ✅ forwarded to surface |
+| **Walking cat mascot** (gray chonk, overlay) | ✅ paces the bottom |
 | **CRT scanlines** | ⏳ deferred |
 | **`purrtty.toml` parse + settings GUI** | ⏳ deferred (config defaults live in `theme.zig`) |
 

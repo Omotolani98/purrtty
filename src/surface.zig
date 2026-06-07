@@ -59,4 +59,9 @@ pub const Surface = struct {
     pub fn key(self: *Surface, ev: gh.ghostty_input_key_s) bool {
         return gh.ghostty_surface_key(self.inner, ev);
     }
+
+    /// Forward a scroll. `mods` packs flags (bit 0 = precision/trackpad).
+    pub fn scroll(self: *Surface, dx: f64, dy: f64, mods: gh.ghostty_input_scroll_mods_t) void {
+        gh.ghostty_surface_mouse_scroll(self.inner, dx, dy, mods);
+    }
 };
