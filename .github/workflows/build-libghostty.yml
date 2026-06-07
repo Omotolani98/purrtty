@@ -1,0 +1,55 @@
+name: build-libghostty
+
+# Builds libghostty.a + ghostty.h on a macOS arm64 runner and uploads them as an
+# artifact. Needed because libghostty can't be built on macOS 26 locally (Zig
+# 0.15.x — required by ghostty — predates macOS 26 and won't link there; see README).
+#
+# Run it from the Actions tab ("Run workflow"), then download the
+# `libghostty-macos-arm64` artifact and drop both files into vendor/:
+#   vendor/libghostty.a   vendor/ghostty.h
+# Then locally:  zig build run -Dtarget=aarch64-macos.15.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      ghostty_ref:
+        description: "ghostty git ref (tag/branch/commit) to build"
+        default: "v1.3.1"
+      zig_version:
+        description: "Zig version (must satisfy ghostty's minimum)"
+        default: "0.15.2"
+
+jobs:
+  build:
+    runs-on: macos-14 # Apple Silicon, macOS 14 — old enough for Zig 0.15.x to link
+    steps:
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ inputs.zig_version }}
+
+      - name: Clone ghostty @ ${{ inputs.ghostty_ref }}
+        run: git clone --depth 1 --branch "${{ inputs.ghostty_ref }}" https://github.com/ghostty-org/ghostty.git
+
+      - name: Build libghostty (app-runtime=none → libghostty)
+        working-directory: ghostty
+        run: zig build -Doptimize=ReleaseFast -Dapp-runtime=none
+
+      - name: Collect libghostty.a + ghostty.h
+        run: |
+          set -euxo pipefail
+          mkdir -p out
+          # The static archive may live in zig-out/lib or inside the xcframework.
+          find ghostty -name 'libghostty*.a' -not -path '*/.git/*' -exec cp -v {} out/ \;
+          # The matching header (use ghostty's own, not the repo's pinned copy).
+          find ghostty -name 'ghostty.h' -path '*include*' -not -path '*/.git/*' -exec cp -v {} out/ \;
+          echo "=== artifact contents ==="
+          ls -la out
+          test -n "$(ls out/libghostty*.a 2>/dev/null)" || { echo 'no libghostty.a produced'; exit 1; }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libghostty-macos-arm64
+          path: out/
+          if-no-files-found: error

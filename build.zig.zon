@@ -1,0 +1,21 @@
+.{
+    .name = .purrtty,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+
+    // Random project fingerprint (do not reuse across packages).
+    .fingerprint = 0x59bdfd79c136241f,
+
+    // libghostty is linked as a prebuilt archive (vendor/libghostty.a), not a
+    // Zig package dependency — see scripts/build-libghostty.sh. This keeps
+    // purrtty's own build fast and decoupled from ghostty's large build graph.
+    .dependencies = .{},
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "vendor",
+        "purrtty.toml",
+    },
+}

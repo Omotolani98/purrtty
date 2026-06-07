@@ -1,0 +1,33 @@
+# purrtty configuration.
+#
+# This is purrtty's user-facing config (parsed into a Theme). Slice 1 ships the
+# schema and defaults here for reference; live parsing + hot-reload lands in the
+# Settings slice. Until then, the phosphor defaults in src/theme.zig are used.
+#
+# (Note: this TOML is purrtty's own format. It is translated into a ghostty
+#  config internally — see src/config.zig — because libghostty consumes its own
+#  `key = value` format, not TOML.)
+
+[appearance]
+# "dark" | "light"
+mode = "dark"
+# Accent drives prompt · cursor · sprites. One of the design swatches, or any hex.
+# green #3DDC97 (default) · amber #FFB454 · blue #7AA2F7 · red #F2787B
+accent = "#3DDC97"
+
+[font]
+# "JetBrains Mono" | "IBM Plex Mono" | "Space Mono" (or any installed mono)
+family = "JetBrains Mono"
+size = 14
+
+[crt]
+# Phosphor scanline overlay opacity, 0.0–0.16 (deferred: scanline slice).
+scanline = 0.05
+
+[mascot]
+# The walking pixel cat (deferred: mascot slice).
+enabled = true
+# "gray" (mochi) · "tabby" (biscuit) · "green" (phosphor)
+cat = "gray"
+# Pace multiplier, 0.3–2.5.
+speed = 1.0
