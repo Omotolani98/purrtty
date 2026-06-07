@@ -32,6 +32,17 @@ pub const Color = struct {
     pub fn format(self: Color, buf: *[7]u8) []const u8 {
         return std.fmt.bufPrint(buf, "#{X:0>2}{X:0>2}{X:0>2}", .{ self.r, self.g, self.b }) catch unreachable;
     }
+
+    /// Runtime parse of `#RRGGBB` / `RRGGBB` (for config values). null if invalid.
+    pub fn parse(s: []const u8) ?Color {
+        const h = if (s.len > 0 and s[0] == '#') s[1..] else s;
+        if (h.len != 6) return null;
+        return .{
+            .r = std.fmt.parseInt(u8, h[0..2], 16) catch return null,
+            .g = std.fmt.parseInt(u8, h[2..4], 16) catch return null,
+            .b = std.fmt.parseInt(u8, h[4..6], 16) catch return null,
+        };
+    }
 };
 
 // ── canvas ────────────────────────────────────────────────────────────────
@@ -71,9 +82,18 @@ pub const fonts = [_]Font{
     .{ .label = "Space", .family = "Space Mono" },
 };
 
-/// CRT scanline overlay opacity (deferred slice). Prototype default + range.
+/// CRT scanline overlay opacity. Prototype default + range.
 pub const scanline_default: f32 = 0.05;
 pub const scanline_max: f32 = 0.16;
+
+/// Look up a terminal font by its short label ("JetBrains"/"Plex"/"Space") or by
+/// exact family name; returns the family string. Falls back to the default.
+pub fn fontFamily(name: []const u8) []const u8 {
+    for (fonts) |f| {
+        if (std.mem.eql(u8, f.label, name) or std.mem.eql(u8, f.family, name)) return f.family;
+    }
+    return name; // allow any installed monospace
+}
 
 // ── cat sprite palettes (mascot slice — kept here as the single source) ──────
 pub const CatPalette = struct {
@@ -96,6 +116,14 @@ pub const cats = blk: {
         .{ .id = "green", .name = "phosphor", .k = Color.hex("#0c3b27"), .g = Color.hex("#3DDC97"), .l = Color.hex("#aef5d2"), .s = Color.hex("#1f9c66"), .e = Color.hex("#06231a"), .p = Color.hex("#0c3b27"), .b = Color.hex("#27c486") },
     };
 };
+
+/// Cat palette by id ("gray"/"tabby"/"green"); defaults to gray.
+pub fn catById(id: []const u8) CatPalette {
+    for (cats) |c| {
+        if (std.mem.eql(u8, c.id, id)) return c;
+    }
+    return cats[0];
+}
 
 test "color parse + format roundtrip" {
     var buf: [7]u8 = undefined;

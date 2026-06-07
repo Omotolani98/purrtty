@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
 
     // `zig build test` — version-agnostic core logic (no libghostty needed).
     const test_step = b.step("test", "Run unit tests (tokens + config)");
-    for ([_][]const u8{ "src/tokens.zig", "src/config.zig" }) |src| {
+    for ([_][]const u8{ "src/tokens.zig", "src/config.zig", "src/settings.zig" }) |src| {
         const tmod = b.createModule(.{
             .root_source_file = b.path(src),
             .target = target,

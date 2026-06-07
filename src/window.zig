@@ -34,7 +34,7 @@ fn nsString(s: [*:0]const u8) objc.id {
 
 /// Boot AppKit, open the window, create the surface, and run the event loop.
 /// Blocks until the app terminates.
-pub fn run(app: *App, theme: Theme, title: [*:0]const u8, cwd: [*:0]const u8) !void {
+pub fn run(app: *App, theme: Theme, mcfg: mascot.Config, title: [*:0]const u8, cwd: [*:0]const u8) !void {
     const NSApp = objc.msgSend(objc.id, objc.class("NSApplication"), objc.sel("sharedApplication"), .{});
     _ = objc.msgSend(bool, NSApp, objc.sel("setActivationPolicy:"), .{NSApplicationActivationPolicyRegular});
 
@@ -77,8 +77,8 @@ pub fn run(app: *App, theme: Theme, title: [*:0]const u8, cwd: [*:0]const u8) !v
     );
     surface.setFocus(true);
 
-    // Walking pixel-cat overlay, composited over the terminal.
-    mascot.mount(view);
+    // Walking pixel-cat + scanline overlay, composited over the terminal.
+    mascot.mount(view, mcfg);
 
     // Show + run.
     _ = objc.msgSend(void, window, objc.sel("center"), .{});

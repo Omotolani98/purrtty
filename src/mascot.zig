@@ -32,15 +32,22 @@ const GRID = [_][]const u8{
 const ROWS: f64 = GRID.len;
 const COLS: f64 = 18;
 
-const SCANLINE_ALPHA: f64 = tokens.scanline_default; // CRT overlay opacity (0.05)
 const PIXEL: f64 = 4; // sprite pixel size in points
-const SPEED: f64 = 26; // points/sec
+const SPEED: f64 = 26; // base points/sec (× speed multiplier)
 const BOTTOM_PAD: f64 = 6; // gap above the window's bottom edge
 const FPS: f64 = 60;
 
-const cat = tokens.cats[0]; // gray "mochi"
+/// Runtime config (from purrtty.toml). Set in `mount`.
+pub const Config = struct {
+    cat: tokens.CatPalette = tokens.cats[0],
+    scanline: f64 = tokens.scanline_default,
+    speed: f64 = 1.0,
+    enabled: bool = true, // show the walking cat (scanlines draw regardless)
+};
+var cfg: Config = .{};
 
 fn colorFor(ch: u8) ?tokens.Color {
+    const cat = cfg.cat;
     return switch (ch) {
         'k' => cat.k,
         'g' => cat.g,
@@ -76,7 +83,8 @@ const spriteW = COLS * PIXEL;
 const spriteH = ROWS * PIXEL;
 
 /// Create the overlay, add it over `host`, and start the walk timer.
-pub fn mount(host: objc.id) void {
+pub fn mount(host: objc.id, config: Config) void {
+    cfg = config;
     const cls = makeViewClass();
     const view = objc.init(objc.alloc(cls));
     _ = objc.msgSend(void, view, objc.sel("setWantsLayer:"), .{true});
@@ -126,7 +134,11 @@ fn tick(view: objc.id, _: objc.SEL, _: objc.id) callconv(.c) void {
     // Track the live width so the cat bounces off the real edges after resize.
     const vb = objc.msgSend(CGRect, view, objc.sel("bounds"), .{});
     state.host_w = vb.size.width;
-    state.x += state.dir * SPEED * dt;
+    if (!cfg.enabled) {
+        _ = objc.msgSend(void, view, objc.sel("setNeedsDisplay:"), .{true});
+        return;
+    }
+    state.x += state.dir * SPEED * cfg.speed * dt;
 
     const pad: f64 = 8;
     if (state.x < pad) {
@@ -151,13 +163,15 @@ fn drawRect(view: objc.id, _: objc.SEL, _: CGRect) callconv(.c) void {
 
     // CRT scanline overlay — faint 1px phosphor lines every 3px over the whole
     // surface (design's --scanline; mirrors the CSS repeating-linear-gradient).
-    if (SCANLINE_ALPHA > 0) {
-        CGContextSetRGBFillColor(ctx, 1, 1, 1, SCANLINE_ALPHA);
+    if (cfg.scanline > 0) {
+        CGContextSetRGBFillColor(ctx, 1, 1, 1, cfg.scanline);
         var y: f64 = 0;
         while (y < b.size.height) : (y += 3) {
             CGContextFillRect(ctx, .{ .origin = .{ .x = 0, .y = y }, .size = .{ .width = b.size.width, .height = 1 } });
         }
     }
+
+    if (!cfg.enabled) return; // scanlines only; no cat
 
     // 4-phase waddle: tiny vertical bob.
     const lift: f64 = switch (state.phase / 9 % 4) {

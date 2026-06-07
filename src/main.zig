@@ -1,21 +1,29 @@
-//! purrtty — a pixel-native terminal (Slice 1: themed terminal on libghostty).
+//! purrtty — a pixel-native terminal on libghostty.
 //!
-//! Boots libghostty with the phosphor-green theme and opens a single macOS
-//! window running the user's shell. Mascot, CRT scanlines, and the settings
-//! GUI are later slices (see the plan / README).
+//! Loads purrtty.toml → theme + mascot config, boots libghostty, and opens a
+//! macOS window: phosphor-themed terminal, walking pixel cat, CRT scanlines.
 
 const std = @import("std");
 const appmod = @import("app.zig");
 const App = appmod.App;
-const Theme = @import("theme.zig").Theme;
 const window = @import("window.zig");
+const mascot = @import("mascot.zig");
+const settings = @import("settings.zig");
 
 pub fn main() !void {
     var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const theme = Theme.phosphor;
+    // Config from purrtty.toml in the cwd (defaults to phosphor if absent).
+    const set = settings.loadOrDefault("purrtty.toml");
+    const theme = set.theme;
+    const mcfg: mascot.Config = .{
+        .cat = set.mascot.cat,
+        .scanline = theme.scanline,
+        .speed = set.mascot.speed,
+        .enabled = set.mascot.enabled,
+    };
 
     var app = try App.init(allocator, theme);
     defer app.deinit();
@@ -31,5 +39,5 @@ pub fn main() !void {
     const title = try std.fmt.allocPrintSentinel(allocator, "purrtty — {s}", .{cwd}, 0);
     defer allocator.free(title);
 
-    try window.run(&app, theme, title, cwd.ptr);
+    try window.run(&app, theme, mcfg, title, cwd.ptr);
 }

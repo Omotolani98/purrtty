@@ -22,7 +22,8 @@ settings — recreating the design in `design/` (a handoff from claude.ai/design
 | Resize + native fullscreen (green button) | ✅ surface reflows |
 | **Walking cat mascot** (gray chonk, overlay) | ✅ paces the bottom |
 | **CRT scanlines** (faint phosphor overlay) | ✅ on |
-| **`purrtty.toml` parse + settings GUI** | ⏳ deferred (config defaults live in `theme.zig`) |
+| **`purrtty.toml` parsing** (theme · accent · font · scanline · cat · speed) | ✅ drives startup |
+| Settings **GUI** panel | ⏳ deferred |
 
 It runs: `zig build run` opens a macOS window with the phosphor-green theme
 running your shell, on libghostty's Metal renderer.
