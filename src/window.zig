@@ -54,6 +54,10 @@ pub fn run(app: *App, theme: Theme, title: [*:0]const u8, cwd: [*:0]const u8) !v
         .{ rect, style, NSBackingStoreBuffered, false },
     );
     _ = objc.msgSend(void, window, objc.sel("setTitle:"), .{nsString(title)});
+    // Enable native fullscreen (green-button maximize). FullScreenPrimary = 1<<7.
+    _ = objc.msgSend(void, window, objc.sel("setCollectionBehavior:"), .{@as(u64, 1 << 7)});
+    // Same object is the window delegate → receives windowDidResize:.
+    _ = objc.msgSend(void, window, objc.sel("setDelegate:"), .{delegate});
 
     // Content view (our subclass), layer-backed for Metal.
     const ViewClass = makeViewClass();
@@ -163,9 +167,24 @@ fn makeDelegateClass() objc.Class {
         @ptrCast(&shouldTerminate),
         "c@:@",
     );
+    _ = objc.class_addMethod(cls, objc.sel("windowDidResize:"), @ptrCast(&windowDidResize), "v@:@");
     objc.objc_registerClassPair(cls);
     return cls;
 }
 fn shouldTerminate(_: objc.id, _: objc.SEL, _: objc.id) callconv(.c) bool {
     return true;
+}
+
+// Reflow the terminal when the window resizes / maximizes / enters fullscreen.
+fn windowDidResize(_: objc.id, _: objc.SEL, notif: objc.id) callconv(.c) void {
+    const surface = g_surface orelse return;
+    const window = objc.msgSend(objc.id, notif, objc.sel("object"), .{});
+    const cv = objc.msgSend(objc.id, window, objc.sel("contentView"), .{});
+    const b = objc.msgSend(CGRect, cv, objc.sel("bounds"), .{});
+    const scale = objc.msgSend(f64, window, objc.sel("backingScaleFactor"), .{});
+    surface.setContentScale(scale, scale);
+    surface.setSize(
+        @intFromFloat(b.size.width * scale),
+        @intFromFloat(b.size.height * scale),
+    );
 }

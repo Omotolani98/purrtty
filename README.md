@@ -19,8 +19,9 @@ settings — recreating the design in `design/` (a handoff from claude.ai/design
 | Phosphor-green palette, JetBrains Mono, green cursor | ✅ wired |
 | **Builds + runs** (real shell in a Metal window) | ✅ on macOS 26 |
 | Scrollback (trackpad/wheel) | ✅ forwarded to surface |
+| Resize + native fullscreen (green button) | ✅ surface reflows |
 | **Walking cat mascot** (gray chonk, overlay) | ✅ paces the bottom |
-| **CRT scanlines** | ⏳ deferred |
+| **CRT scanlines** (faint phosphor overlay) | ✅ on |
 | **`purrtty.toml` parse + settings GUI** | ⏳ deferred (config defaults live in `theme.zig`) |
 
 It runs: `zig build run` opens a macOS window with the phosphor-green theme
