@@ -17,13 +17,13 @@ settings — recreating the design in `design/` (a handoff from claude.ai/design
 | AppKit/Obj-C glue — window, Metal view, key input (`src/objc.zig`, `src/window.zig`) | ✅ compiles |
 | Theme → ghostty config pipeline (`src/tokens.zig`, `src/theme.zig`, `src/config.zig`) | ✅ unit-tested |
 | Phosphor-green palette, JetBrains Mono, green cursor | ✅ wired |
+| **Builds + runs** (real shell in a Metal window) | ✅ on macOS 26 |
 | **Walking cat mascot** | ⏳ designed, deferred (overlay slice) |
 | **CRT scanlines** | ⏳ deferred |
 | **`purrtty.toml` parse + settings GUI** | ⏳ deferred (config defaults live in `theme.zig`) |
 
-The whole source compiles cleanly against the real libghostty header with Zig
-0.15.2 (`zig build-obj`), and the theme/config logic passes unit tests. What's
-left for a runnable binary is producing & linking `libghostty.a` (below).
+It runs: `zig build run` opens a macOS window with the phosphor-green theme
+running your shell, on libghostty's Metal renderer.
 
 ## Architecture
 
@@ -47,25 +47,29 @@ design become real via libghostty's Kitty graphics support.
 
 ## Build
 
-**Requirements**
-- **Zig 0.15.2** — must match libghostty's pinned compiler (`build.zig.zon`).
-- **Xcode / full Command Line Tools** — Metal shader compilation (`xcrun metal`).
-- macOS on Apple Silicon (aarch64). Metal renderer; Linux/OpenGL is future work.
+**Split toolchain** (because of the macOS 26 bind below):
+
+- **libghostty.a** is built with **Zig 0.15.2** (ghostty's pinned compiler) on a
+  **macOS ≤ 15** host or CI runner.
+- **purrtty** is built locally with **Zig 0.16** (Homebrew) — the only toolchain
+  that links Mach-O against the macOS 26 SDK. It links the C archive over the ABI.
+
+Apple Silicon (aarch64), Metal renderer; Linux/OpenGL is future work.
 
 ```sh
-# 1. Build the terminal core (clones ghostty, ~30 deps, large first build).
-#    Pin a ref for reproducibility, e.g. a tag or commit:
-scripts/build-libghostty.sh main      # → vendor/libghostty.a + vendor/ghostty.h
+# 1. Get libghostty.a + ghostty.h into vendor/:
+#    - GitHub Actions: run the "build-libghostty" workflow, download the
+#      `libghostty-macos-arm64` artifact, unzip libghostty.a + ghostty.h into vendor/.
+#    - or on a macOS ≤15 box:  scripts/build-libghostty.sh v1.3.1
 
-# 2. Build & run purrtty.
+# 2. Build + run (Homebrew Zig 0.16):
 zig build run
 ```
 
-Run the version-agnostic core tests any time (no libghostty needed):
+First launch may need an ad-hoc signature for the GPU/GUI sandbox:
+`codesign -s - --force zig-out/bin/purrtty`.
 
-```sh
-zig build test
-```
+Version-agnostic core tests (no libghostty needed): `zig build test`.
 
 ### Toolchain note — macOS 26 (Tahoe) gotcha
 
@@ -79,21 +83,10 @@ There is a real three-way bind on **macOS 26**:
   `zig build` (and therefore ghostty's own build) won't run with 0.15.2 here.
 - Homebrew Zig **0.16** links fine on macOS 26 but can't build ghostty.
 
-So on macOS 26 you currently **cannot build `libghostty.a` locally**. Workarounds:
-
-1. **Build `libghostty.a` on macOS ≤ 15** (or a CI/VM image with it), then copy
-   `libghostty.a` + `ghostty.h` into `vendor/` here. purrtty links + runs fine on
-   macOS 26 when you pin an older deployment target:
-   ```sh
-   zig build run -Dtarget=aarch64-macos.15.0   # 0.15.2 links cleanly this way
-   ```
-2. Wait for ghostty to migrate to Zig 0.16 — then everything builds natively on
-   macOS 26 with Homebrew zig.
-
-**purrtty's own code is link-ready today:** building the exe against the SDK
-leaves *only* the 16 `ghostty_*` symbols (from libghostty) and the objc runtime
-unresolved — zero undefined symbols from our code. Drop in `libghostty.a` and it
-runs.
+So on macOS 26 you **can't build `libghostty.a` locally** — build it in CI / on a
+macOS ≤ 15 box (Zig 0.15.2). That's the whole reason for the split toolchain
+above. purrtty itself builds + runs fine here with Homebrew Zig 0.16 against that
+prebuilt archive (verified: opens a live themed terminal window).
 
 ## Design provenance
 

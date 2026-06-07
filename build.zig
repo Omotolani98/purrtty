@@ -1,73 +1,59 @@
 const std = @import("std");
 
-// purrtty — build for Zig 0.15.2 (must match libghostty's pinned Zig).
+// purrtty — local build with Zig 0.16 (Homebrew) on macOS.
 //
-// purrtty links a *prebuilt* `vendor/libghostty.a` (+ its pinned `vendor/ghostty.h`).
-// Produce that archive once with `scripts/build-libghostty.sh`, then `zig build run`.
+// Split toolchain (see README):
+//   • libghostty.a is built in CI with Zig 0.15.2 on a macОS 14 runner
+//     (ghostty pins 0.15.x, which can't link on macOS 26). Download the CI
+//     artifact into vendor/libghostty.a + vendor/ghostty.h.
+//   • purrtty itself builds here with Zig 0.16, linking that C archive. 0.16 is
+//     the only toolchain that links Mach-O against the macOS 26 SDK.
+//
+//   zig build run
+const FRAMEWORKS = [_][]const u8{
+    "AppKit",     "Foundation",  "Cocoa",       "QuartzCore",
+    "Metal",      "MetalKit",    "CoreText",    "CoreGraphics",
+    "CoreVideo",  "IOSurface",   "IOKit",       "Carbon",
+    "Security",   "AudioToolbox", "CoreFoundation",
+    "UniformTypeIdentifiers",    "ApplicationServices",
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "purrtty",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+    const mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .link_libcpp = true, // libghostty pulls in C++ deps (spirv-cross, dcimgui)
     });
+    mod.addIncludePath(b.path("vendor"));
 
-    exe.addIncludePath(b.path("vendor"));
-    exe.linkLibC();
-    exe.linkLibCpp(); // libghostty pulls in C++ deps (spirv-cross, dcimgui)
+    // Requires vendor/libghostty.a (download the CI artifact first — see README).
+    mod.addObjectFile(b.path("vendor/libghostty.a"));
 
-    // The terminal core. Built separately (see scripts/build-libghostty.sh).
-    const lib = "vendor/libghostty.a";
-    if (fileExists(b, lib)) {
-        exe.addObjectFile(b.path(lib));
-    } else {
-        std.log.warn(
-            "{s} not found — run scripts/build-libghostty.sh first. " ++
-                "Configuring anyway so `zig build test` works.",
-            .{lib},
-        );
-    }
+    mod.linkSystemLibrary("objc", .{});
+    for (FRAMEWORKS) |f| mod.linkFramework(f, .{});
 
-    // Obj-C runtime + the frameworks libghostty and our AppKit glue need.
-    exe.linkSystemLibrary("objc");
-    const frameworks = [_][]const u8{
-        "AppKit",     "Foundation", "CoreText",  "CoreGraphics",
-        "CoreVideo",  "QuartzCore", "Metal",     "MetalKit",
-        "IOSurface",  "IOKit",      "Carbon",    "Security",
-        "Cocoa",      "AudioToolbox",
-    };
-    for (frameworks) |f| exe.linkFramework(f);
-
+    const exe = b.addExecutable(.{ .name = "purrtty", .root_module = mod });
     b.installArtifact(exe);
 
-    // `zig build run`
     const run = b.addRunArtifact(exe);
     run.step.dependOn(b.getInstallStep());
     if (b.args) |args| run.addArgs(args);
     b.step("run", "Run purrtty").dependOn(&run.step);
 
     // `zig build test` — version-agnostic core logic (no libghostty needed).
-    const test_step = b.step("test", "Run unit tests (tokens + theme + config)");
+    const test_step = b.step("test", "Run unit tests (tokens + config)");
     for ([_][]const u8{ "src/tokens.zig", "src/config.zig" }) |src| {
-        const t = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(src),
-                .target = target,
-                .optimize = optimize,
-            }),
+        const tmod = b.createModule(.{
+            .root_source_file = b.path(src),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
         });
-        t.linkLibC();
-        test_step.dependOn(&b.addRunArtifact(t).step);
+        test_step.dependOn(&b.addRunArtifact(b.addTest(.{ .root_module = tmod })).step);
     }
-}
-
-fn fileExists(b: *std.Build, rel: []const u8) bool {
-    const abs = b.pathFromRoot(rel);
-    std.fs.accessAbsolute(abs, .{}) catch return false;
-    return true;
 }

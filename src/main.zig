@@ -22,12 +22,14 @@ pub fn main() !void {
     appmod.setCurrent(&app);
 
     // Working directory for the spawned shell + window title (purrtty — <cwd>).
-    var cwd_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = std.process.getCwd(&cwd_buf) catch "/";
-    const cwd_z = try allocator.dupeZ(u8, cwd);
-    defer allocator.free(cwd_z);
+    // libc getcwd → stable across Zig 0.15/0.16.
+    var cwd_buf: [4096]u8 = undefined;
+    const cwd: [:0]const u8 = if (std.c.getcwd(&cwd_buf, cwd_buf.len) != null)
+        std.mem.sliceTo(@as([*:0]u8, @ptrCast(&cwd_buf)), 0)
+    else
+        "/";
     const title = try std.fmt.allocPrintSentinel(allocator, "purrtty — {s}", .{cwd}, 0);
     defer allocator.free(title);
 
-    try window.run(&app, theme, title, cwd_z);
+    try window.run(&app, theme, title, cwd.ptr);
 }

@@ -86,12 +86,15 @@ fn confirmReadClipboard(_: ?*anyopaque, _: [*c]const u8, _: ?*anyopaque, _: gh.g
 fn writeClipboard(_: ?*anyopaque, _: gh.ghostty_clipboard_e, _: [*c]const gh.ghostty_clipboard_content_s, _: usize, _: bool) callconv(.c) void {}
 fn closeSurface(_: ?*anyopaque, _: bool) callconv(.c) void {}
 
-fn writeTempConfig(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
+// Write via libc (fopen/fwrite) so this compiles unchanged on both Zig 0.15.2
+// and 0.16 — their std.fs file APIs diverge, but libc is stable.
+fn writeTempConfig(allocator: std.mem.Allocator, text: []const u8) ![:0]u8 {
     const dir = if (std.c.getenv("TMPDIR")) |d| std.mem.span(d) else "/tmp";
     const path = try std.fmt.allocPrintSentinel(allocator, "{s}/purrtty-config", .{dir}, 0);
     errdefer allocator.free(path);
-    const file = try std.fs.cwd().createFile(path, .{ .truncate = true });
-    defer file.close();
-    try file.writeAll(text);
+
+    const f = std.c.fopen(path.ptr, "w") orelse return error.OpenTempConfig;
+    defer _ = std.c.fclose(f);
+    if (std.c.fwrite(text.ptr, 1, text.len, f) != text.len) return error.WriteTempConfig;
     return path;
 }
